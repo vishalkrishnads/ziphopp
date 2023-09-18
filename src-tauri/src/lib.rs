@@ -1,5 +1,5 @@
 pub mod core {
-    use std::{path::{PathBuf, Path}, fs};
+    use std::{path::PathBuf, fs};
     use native_dialog::FileDialog;
     use zip::{ZipArchive, result::ZipError};
 
@@ -30,74 +30,83 @@ pub mod core {
         let path_buf = match file {
             Some(path) => Some(PathBuf::from(path)),
             None => FileDialog::new()
-                        .show_open_single_file()
-                        .expect("Failed to open file dialog")
+                .show_open_single_file()
+                .map_err(|e| Error {
+                    password_required: false,
+                    path: String::from(""),
+                    message: e.to_string(),
+                })?,
         };
+    
+        let path = path_buf
+            .as_ref()
+            .and_then(|path| path.to_str())
+            .ok_or_else(|| Error::blank())?;
+    
+        let file = fs::File::open(&path).map_err(|e| Error {
+            password_required: false,
+            path: String::from(""),
+            message: e.to_string(),
+        })?;
+    
+        let mut archive = ZipArchive::new(file).map_err(|e| Error {
+            password_required: false,
+            path: path.to_string(),
+            message: e.to_string(),
+        })?;
 
-        if let Some(path) = path_buf {
-            if let Ok(file) = fs::File::open(Path::new(&path)) {
-                if let Ok(mut archive) = ZipArchive::new(file) {
+        let mut contents = Vec::new();
+        for each in archive.file_names() {
+            contents.push(String::from(each));
+        }
 
-                    // both the .by_index() and .by_index_decrypt() methods take a mutable &mut self reference of the object `archive`
-                    // in order to avoid a .clone() call, we'll simply extract all the file paths beforehand
-                    let mut contents = Vec::new();
-                    for each in archive.file_names() {
-                        contents.push(String::from(each));
-                    }
-
-                    // now, since the application requires the user to enter a password to unlock the .zip,
-                    // we'll use the following block to do so & return the result if it works.
-                    match password {
-                        Some(password) => {
-                            // once the password has been entered, this will run
+        let path = String::from(path);
+    
+        // now, since the application requires the user to enter a password to unlock the .zip,
+         // we'll use the following block to do so & return the result if it works.
+        match password {
+            Some(password) => {
+                // once the password has been entered, this will run
                             
-                            // descrypt the file to see if password is correct
-                            match archive.by_index_decrypt(0, password.as_bytes()) {
-                                Ok(zip) => {
-                                    if let Ok(path) = path.into_os_string().into_string() {    
-                                        match zip {
-                                            Ok(_) => Ok(Success { contents, path }),
-                                            Err(e) => {
-                                                
-                                                    Err(Error {
-                                                        password_required: true,
-                                                        path,
-                                                        message: e.to_string()
-                                                    })
-                                            }
-                                        }
-                                    } else { Err(Error::blank()) }
-                                },
-                                Err(_) => Err(Error { password_required: false, path: String::from(""), message: String::from("") })
+                // descrypt the file to see if password is correct
+                match archive.by_index_decrypt(0, password.as_bytes()) {
+                    Ok(zip) => {  
+                        match zip {
+                            Ok(_) => Ok(Success { contents, path }),
+                            Err(e) => {
+                                Err(Error {
+                                    password_required: true,
+                                    path,
+                                    message: e.to_string()
+                                })
                             }
-                        },
-                        None => {
-                            // this block would run when the user first selects a file
-                            if let Ok(path) = path.into_os_string().into_string() {
-                                // open the first file to see if it works.
-                                match archive.by_index(0) {
-                                    Ok(_) =>  Ok(Success { contents, path }),
-                                    Err(error) => {
-                                        
-                                        let (password_required, message) = match error {
-                                            ZipError::UnsupportedArchive(e) => (e == ZipError::PASSWORD_REQUIRED, String::from(e)),
-                                            ZipError::InvalidArchive(e) => (false, String::from(e)),
-                                            _ => (false, String::from(""))
-                                        };
-                                        Err(Error {
-                                            password_required,
-                                            path,
-                                            message
-                                        })
-                                    }
-                                }
-                            } else { Err(Error::blank()) }
-                        }
+                        }     
+                    },
+                    Err(_) => Err(Error { password_required: false, path: String::from(""), message: String::from("") })
+                }
+            },
+            None => {
+                // this block would run when the user first selects a file
+                // open the first file to see if it works.
+                match archive.by_index(0) {
+                    Ok(_) =>  Ok(Success { contents, path }),
+                    Err(error) => {                    
+                        let (password_required, message) = match error {
+                            ZipError::UnsupportedArchive(e) => (e == ZipError::PASSWORD_REQUIRED, String::from(e)),
+                            ZipError::InvalidArchive(e) => (false, String::from(e)),
+                            _ => (false, String::from(""))
+                        };
+                        Err(Error {
+                            password_required,
+                            path,
+                            message
+                        })
                     }
-                } else { Err(Error::blank()) }
-            } else { Err(Error::blank()) }
-        } else { Err(Error::blank()) }
-    } 
+                }
+            }
+        }
+    }
+    
 }
 
 pub mod db {
