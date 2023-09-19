@@ -259,5 +259,4 @@ pub mod db {
             History { history }
         }
     }
-
 }    

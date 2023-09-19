@@ -13,6 +13,7 @@ export default function Home() {
   const [status, setStatus] = useState({ name: '', size: '', compressed: '' })
   const path = useRef('')
 
+
   const openWithPassword = () => {
     invoke('open_file', {
       path: path.current,
