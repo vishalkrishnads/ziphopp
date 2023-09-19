@@ -1,7 +1,21 @@
+use std::path::Path;
+
+// utility function to get the file name
+fn get_filename(path: &str) -> String {
+    let path_obj = Path::new(path);
+    if let Some(file_name) = path_obj.file_name() {
+        if let Some(file_name_str) = file_name.to_str() {
+            return file_name_str.to_string();
+        }
+    }
+    path.to_string() // Return the original path if extraction fails
+}
+
 pub mod core {
     use std::{path::PathBuf, fs};
     use native_dialog::FileDialog;
     use zip::{ZipArchive, result::ZipError};
+    use super::get_filename;
 
     #[derive(Clone, serde::Serialize)]
     pub struct Error {
@@ -21,9 +35,17 @@ pub mod core {
     }
 
     #[derive(Clone, serde::Serialize)]
+    pub struct MetaData {
+        compressed: u64,
+        size: u64,
+        name: String
+    }
+
+    #[derive(Clone, serde::Serialize)]
     pub struct Success {
         pub contents: Vec<String>,
-        pub path: String
+        pub path: String,
+        pub meta: MetaData
     }
 
     pub fn open(file: Option<String>, password: Option<String>) -> Result<Success, Error> {
@@ -60,21 +82,26 @@ pub mod core {
             contents.push(String::from(each));
         }
 
+        let name = get_filename(path);
         let path = String::from(path);
-    
+        let mut compressed: u64 = 0;
+        let mut size: u64 = 0;
         // now, since the application requires the user to enter a password to unlock the .zip,
          // we'll use the following block to do so & return the result if it works.
         match password {
             Some(password) => {
                 // once the password has been entered, this will run
-                            
+                
                 // descrypt the file to see if password is correct
                 match archive.by_index_decrypt(0, password.as_bytes()) {
                     Ok(zip) => {  
                         match zip {
-                            Ok(_) => Ok(Success { contents, path }),
+                            Ok(file) => {
+                                size += file.size();
+                                compressed += file.compressed_size();
+                            },
                             Err(e) => {
-                                Err(Error {
+                                return Err(Error {
                                     password_required: true,
                                     path,
                                     message: e.to_string()
@@ -82,29 +109,34 @@ pub mod core {
                             }
                         }     
                     },
-                    Err(_) => Err(Error { password_required: false, path: String::from(""), message: String::from("") })
+                    Err(_) => return Err(Error::blank())
                 }
             },
             None => {
-                // this block would run when the user first selects a file
-                // open the first file to see if it works.
-                match archive.by_index(0) {
-                    Ok(_) =>  Ok(Success { contents, path }),
-                    Err(error) => {                    
-                        let (password_required, message) = match error {
-                            ZipError::UnsupportedArchive(e) => (e == ZipError::PASSWORD_REQUIRED, String::from(e)),
-                            ZipError::InvalidArchive(e) => (false, String::from(e)),
-                            _ => (false, String::from(""))
-                        };
-                        Err(Error {
-                            password_required,
-                            path,
-                            message
-                        })
+                for i in 0..archive.len() {
+                    match archive.by_index(i) {
+                        Ok(file) =>  {
+                            size += file.size();
+                            compressed += file.compressed_size();
+                        },
+                        Err(error) => {                    
+                            let (password_required, message) = match error {
+                                ZipError::UnsupportedArchive(e) => (e == ZipError::PASSWORD_REQUIRED, String::from(e)),
+                                ZipError::InvalidArchive(e) => (false, String::from(e)),
+                                _ => (false, String::from(""))
+                            };
+                            return Err(Error {
+                                password_required,
+                                path,
+                                message
+                            })
+                        }
                     }
                 }
             }
-        }
+        };
+
+        Ok(Success { contents, path, meta: MetaData { compressed, size, name } })
     }
     
 }
@@ -113,7 +145,7 @@ pub mod db {
     use std::collections::VecDeque;
     use std::fs::{File, OpenOptions};
     use std::io::{self, BufRead, BufReader, Write, Seek};
-    use std::path::Path;
+    use super::get_filename;
 
     pub struct Database {
         file: File,
@@ -191,24 +223,13 @@ pub mod db {
             Ok(())
         }
 
-        // utility function to get the file name
-        fn get_filename(&self, path: &str) -> String {
-            let path_obj = Path::new(path);
-            if let Some(file_name) = path_obj.file_name() {
-                if let Some(file_name_str) = file_name.to_str() {
-                    return file_name_str.to_string();
-                }
-            }
-            path.to_string() // Return the original path if extraction fails
-        }
-
         pub fn refresh(&self) -> History {
             let mut history = Vec::new();
 
             for value in &self.queue {
                 history.push(HoppFile {
-                    name: self.get_filename(&value),
-                    path: value.clone()
+                    name: get_filename(&value),
+                    path: value.to_string()
                 });
             }
 
