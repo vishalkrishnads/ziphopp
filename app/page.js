@@ -10,7 +10,7 @@ export default function Home() {
   const [contents, setContents] = useState([])
   const [history, setHistory] = useState([])
   const [error, setError] = useState('No errors');
-  const [status, setStatus] = useState({ name: '', size: 0, compressed: 0 })
+  const [status, setStatus] = useState({ name: '', size: '', compressed: '' })
   const path = useRef('')
 
   const openWithPassword = () => {
