@@ -3,8 +3,8 @@ import styles from './recent.module.css'
 import recents from '../../assets/recent.png'
 import open from '../../assets/open.png'
 
-export default function Recent() {
-    return <div className={styles.recent}>
+export default function Recent({name, path, onClick}) {
+    return <div onClick={onClick} className={styles.recent}>
       <div className={styles.margin} />
       <div className={styles.icon}>
         <Image
@@ -15,8 +15,8 @@ export default function Recent() {
         />
       </div>
       <div className={styles.info}>
-        <h4>fliename.zip</h4>
-        <p>/home/users/someething/ame.zip</p>
+        <h4>{name}</h4>
+        <p>{path}</p>
       </div>
       <div className={styles.open}>
         <Image

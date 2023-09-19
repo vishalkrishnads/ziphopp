@@ -71,6 +71,8 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
 .contents > .filepane > .file > .info > h4 {
@@ -121,10 +123,12 @@
   flex: 8;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
 }
 
 .app > .right {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
