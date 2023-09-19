@@ -1,26 +1,34 @@
+'use client'
+
 import Image from 'next/image'
 import Header from './components/Header/Header'
 import Recent from './components/Recent/Recent'
+import PwdModal from './components/Password/Password'
 import styles from './page.module.css'
 import zip from './assets/zipicon.png'
+import { useState } from 'react'
 
 export default function Home() {
 
+  const [modal, setModal] = useState(false);
+  const [curent, setCurrent] = useState({});
+
   return (
     <main className={styles.main}>
+      {modal ? <PwdModal onCancel={() => setModal(false)} /> : null}
       <div className={styles.app}>
         <div className={styles.left}>
           <div className={styles.contents}>
             <Header />
             <div className={styles.filepane}>
-              {/* <button>Open file</button> */}
-              <div className={styles.file}>
+              {Object.getOwnPropertyNames(curent).length == 0 ?
+               <button>Open file</button> :
+               <div className={styles.file}>
                 <div className={styles.margin} />
                 <div className={styles.icon}>
                   <Image
                     src={zip}
                     alt={''}
-                    // style={{ width: '8vw', height: '8vw'  }}
                     unoptimized
                   />
                 </div>
@@ -31,7 +39,7 @@ export default function Home() {
                   <div><p>Open another</p></div>
                 </div>
                 <div className={styles.margin} />
-              </div>
+              </div>}
             </div>
             <div className={styles.recentpane}>
               <div className={styles.margin} />
