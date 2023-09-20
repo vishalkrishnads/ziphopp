@@ -1,6 +1,14 @@
 use std::path::Path;
 
-// utility function to get the file name
+/// This function gets the name of a file given a path
+/// 
+/// # Arguments
+/// 
+/// * `path` - The file path as &str
+/// 
+/// # Returns
+/// 
+/// The name of the file in the filesystem
 fn get_filename(path: &str) -> String {
     let path_obj = Path::new(path);
     if let Some(file_name) = path_obj.file_name() {
@@ -17,14 +25,19 @@ pub mod core {
     use zip::{ZipArchive, result::ZipError};
     use super::get_filename;
 
+    /// Represents an error that can occur when a ZIP is opened
     #[derive(Clone, serde::Serialize)]
     pub struct Error {
+        /// This field indicates whether the error is related either to the password being invalid, or the file requiring a password for decryption
         pub password_required: bool,
+        /// The file path to the archive file
         pub path: String,
+        /// A verbose message about the error itself
         pub message: String
     }
 
     impl Error {
+        /// Creates a new `Error` instance with default values.
         pub fn blank() -> Self {
             Error {
                 password_required: false,
@@ -34,14 +47,20 @@ pub mod core {
         }
     }
 
+    /// Represents the metadata about a ZIP archive
     #[derive(Clone, serde::Serialize)]
     pub struct MetaData {
+        /// The size of the archive when compressed, formatted as a string. It displays the size for example, as x.x GB
         compressed: String,
+        /// The size of the archive when uncompressed, formatted as a string. It displays the size for example, as x.x GB
         size: String,
+        /// The name of the archive file
         name: String
     }
 
     impl MetaData {
+
+        /// Formats a byte size into a human-readable string with appropriate units (B, KB, MB or GB)
         fn format_bytes(bytes: u64) -> String {
 
             // an array to hold the different units
@@ -59,18 +78,35 @@ pub mod core {
             format!("{:.2}{}", value, UNITS[unit_idx])
         }
 
+        /// Creates a new `MetaData` instnace with the specified properties
         fn new(compressed: u64, size: u64, name: String) -> Self {
             MetaData { compressed: Self::format_bytes(compressed), size: Self::format_bytes(size), name }
         }
     }
 
+    /// Represents the result of a successful parse operation
     #[derive(Clone, serde::Serialize)]
     pub struct Success {
+        /// A veector containing the file paths of everything in the archive, when uncompressed
         pub contents: Vec<String>,
+        /// The file path of the zip archive
         pub path: String,
+        /// Metadata of the file as stated in the requirements
         pub meta: MetaData
     }
 
+    /// Opens a ZIP archive specified by the `file` path and optional `password`.
+    ///
+    /// If `file` is `None`, a file dialog is displayed to select the archive.
+    ///
+    /// # Arguments
+    ///
+    /// * `file` - An optional path to the ZIP archive.
+    /// * `password` - An optional password to decrypt the archive.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing either a `Success` or an `Error`.
     pub fn open(file: Option<String>, password: Option<String>) -> Result<Success, Error> {
         let path_buf = match file {
             Some(path) => Some(PathBuf::from(path)),
@@ -171,24 +207,43 @@ pub mod db {
     use std::io::{self, BufRead, BufReader, Write, Seek};
     use super::get_filename;
 
+    /// The database of the application to store recently opened files
     pub struct Database {
+        /// The file which is used as the permenant backup storage
         file: File,
+        /// The maximum no of recent files displayed, the requirements state it to be 5
         max_entries: usize,
+        /// The queue in memory for fast access at runtime
         queue: VecDeque<String>,
     }
 
+    /// Represents a single ZIP file opened recently
     #[derive(Clone, serde::Serialize)]
     struct HoppFile {
+        /// The name of the ZIP arhive
         name: String,
+        /// The file path of the ZIP archive
         path: String
     }
 
+    /// Represents the recent history. Used to return a result to the front-end
     #[derive(Clone, serde::Serialize)]
     pub struct History {
+        /// A vector containing 5 recently opened files
         history: Vec<HoppFile>
     }
 
     impl Database {
+        /// Returns a new instance of `Database`
+        /// 
+        /// # Arguments
+        /// 
+        /// * `file_path` - The file path as &str
+        /// * `max_entries` - The maximum number of entries the database should hold
+        /// 
+        /// # Returns
+        /// 
+        /// A new instance of `Database` with the given parameters
         pub fn new(file_path: &str, max_entries: usize) -> Self {
             let file = OpenOptions::new()
                 .read(true)
@@ -217,6 +272,15 @@ pub mod db {
             Ok(())
         }
 
+        /// Inserts a new entry into the database
+        /// 
+        /// # Arguments
+        /// 
+        /// * `data` - The data to insert as str
+        /// 
+        /// # Returns
+        /// 
+        /// A `Result<>` indicating the result of the operation
         pub fn insert(&mut self, data: &str) -> io::Result<()> {
             // Check if the data (file) already exists in the queue.
             if let Some(existing_index) = self.queue.iter().position(|item| item == data) {
@@ -247,6 +311,11 @@ pub mod db {
             Ok(())
         }
 
+        /// Returns all the contents of the database for the front end to refresh recents list
+        /// 
+        /// # Returns
+        /// 
+        /// An instance of `History` containing a vector with the database contents
         pub fn refresh(&self) -> History {
             let mut history = Vec::new();
 
