@@ -75,6 +75,7 @@ pub mod core {
         let path_buf = match file {
             Some(path) => Some(PathBuf::from(path)),
             None => FileDialog::new()
+                .add_filter("ZIP Archive", &["zip"])
                 .show_open_single_file()
                 .map_err(|e| Error {
                     password_required: false,
