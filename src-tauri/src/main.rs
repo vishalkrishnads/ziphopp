@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::Mutex;
-use app::{core::{Success, Error, open}, db::{Database, History}};
+use ziphopp::{core::{Success, Error, open}, db::{Database, History}};
 
 struct HoppState(Mutex<Database>);
 
