@@ -15,6 +15,7 @@ export default function Home() {
   const [current, setCurrent] = useState({});
   const [contents, setContents] = useState([])
   const [recents, setRecents] = useState([])
+  const [error, setError] = useState('')
   const pathRef = useRef('');
 
   const openFile = (path = '', password = '') => {
@@ -30,12 +31,14 @@ export default function Home() {
     .then((result) => {
       setCurrent(result);
       setContents(result.contents)
+      setError('')
       refresh()
     })
     .catch((error) => {
       if(error.password_required) {
         setModal(true);
         pathRef.current = error.path
+        if(password.length > 0) setError(error.message)
       }
     })
   }
@@ -50,7 +53,13 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
-      {modal ? <PwdModal onCancel={() => setModal(false)} onSuccess={(password) => {setModal(false); openFile(pathRef.current, password)}} /> : null}
+      {modal ? 
+        <PwdModal 
+          onCancel={() => {setModal(false); setError('');}} 
+          onSuccess={(password) => {setModal(false); openFile(pathRef.current, password)}} 
+          error={error} 
+        /> 
+      : null}
       <div className={styles.app}>
         <div className={styles.left}>
           <div className={styles.contents}>

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import styles from './password.module.css'
 
-export default function PwdModal({onCancel, onSuccess}) {
+export default function PwdModal({onCancel, onSuccess, error}) {
 
     const [password, setPassword] = useState('');
 
@@ -16,6 +16,7 @@ export default function PwdModal({onCancel, onSuccess}) {
                 </div>
                 <div className={styles.field}>
                     <input value={password} onChange={(event) => setPassword(event.target.value)} type={'text'} placeholder={'Type your password'} />
+                    <p className={styles.error}>{error}</p>
                 </div>
                 <div className={styles.buttons}>
                     <h4 onClick={onCancel}>Cancel</h4>
