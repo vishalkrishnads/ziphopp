@@ -74,18 +74,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
-name = "app"
-version = "0.1.0"
-dependencies = [
- "native-dialog",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "zip",
-]
-
-[[package]]
 name = "ascii"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3742,6 +3730,18 @@ dependencies = [
  "sha1",
  "time",
  "zstd",
+]
+
+[[package]]
+name = "ziphopp"
+version = "0.1.0"
+dependencies = [
+ "native-dialog",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "zip",
 ]
 
 [[package]]

@@ -1,39 +1,132 @@
 .main {
   display: flex;
-  padding: 2rem;
   min-height: 100vh;
+  justify-content: center;
+  align-items: center;
 }
 
-.left {
+.app {
+  width: 98vw;
+  height: 95vh;
+  display: flex;
+}
+
+.app > .left {
   flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.app > .left > .contents {
+  width: 47vw;
+  height: 90vh;
   display: flex;
   flex-direction: column;
 }
 
-.top {
+.contents > .filepane {
+  flex: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.contents > .filepane > button {
+  padding: 1em;
+  font-size: 2.5vh;
+  font-weight: bold;
+  color: var(--accent);
+  width: 15vw;
+  background-color: transparent;
+  border: 2px solid var(--accent);
+  border-radius: 50px;
+}
+
+.contents > .filepane > button:hover {
+  background-color: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+.contents > .filepane > .file {
+  flex: 1;
+  height: 80%;
+  display: flex;
+}
+
+.contents > .filepane > .file > .margin {
+  flex: 1;
+}
+
+.contents > .filepane > .file > .icon {
   flex: 2;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.middle {
+.contents > .filepane > .file > .info {
+  flex: 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.contents > .filepane > .file > .info > h4 {
+  font-size: 20px;
+}
+
+.contents > .filepane > .file > .info > h6 {
+  font-size: 15px;
+  color: grey;
+}
+
+.contents > .filepane > .file > .info > p {
+  font-size: 13px;
+  color: grey
+}
+
+.contents > .filepane > .file > .info > div > p {
+  color: var(--accent);
+}
+
+.contents > .filepane > .file > .info > div > p:hover {
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.contents > .recentpane {
+  flex: 5;
+  display: flex;
+}
+
+.contents > .recentpane > .margin {
+  flex: 1;
+}
+
+.contents > .recentpane > .pane {
+  flex: 8;
+  display: flex;
+  flex-direction: column;
+}
+
+.contents > .recentpane > .pane > .header {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
 }
 
-.bottom {
-  flex: 2;
+.contents > .recentpane > .pane > .recents {
+  flex: 8;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
 }
 
-.right {
+.app > .right {
   flex: 1;
   display: flex;
   flex-direction: column;

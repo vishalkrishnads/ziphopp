@@ -1,11 +1,11 @@
 [package]
-name = "app"
+name = "ziphopp"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Evaluation task for Rust engineer role at hoppscotch: A simple app that opens .zip archives"
+authors = ["vishalkrishnads"]
 license = ""
-repository = ""
-default-run = "app"
+repository = "https://github.com/vishalkrishnads/ziphopp.git"
+default-run = "ziphopp"
 edition = "2021"
 rust-version = "1.60"
 
