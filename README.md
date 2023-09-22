@@ -17,13 +17,14 @@ A desktop app that lists the contents of a ZIP archive, built using the [Tauri f
         * [Opening files](#opening-files)
         * [Recents list](#recents-list)
     * [Control Flow](#control-flow)
-* Setup Guide
-    * Prerequisites
-    * Build from source
-    * Documentation
+* [Setup Guide](#setup-guide)
+    * [Prerequisites](#prerequisites)
+    * [Build from source](#build-from-source)
+    * [Documentation](#documentation)
+* [Contributing](#contributing)
 
 ## Problem Statement
-In the assigned task, the candidate is required to build a ZIP file viewer that can view the contents of a ZIP file in the system. They are to write it using the [Tauri framework](https://tauri.app). The full document detailing the task can be found [here]() for reference.
+In the assigned task, the candidate is required to build a ZIP file viewer that can view the contents of a ZIP file in the system. They are to write it using the [Tauri framework](https://tauri.app). The full document detailing the task can be found [here](https://drive.google.com/file/d/1vSfzSLX-p11Wnra4A4wmKcbNpBCS0d_a/view?usp=sharing) for reference.
 
 ### Functionality Required
 1. The app should provide a window where the user can click to select and open a ZIP
@@ -95,7 +96,7 @@ The recently opened files are stored in volatile memory as a queue & in a file i
 If you're wondering why I resorted to using a simple old plain text file for storing the recent file entries, the reason is that introducing a dedicated database in this application seems like a performance overhead & quite frankly, is a bit overkill for this application. Also, in the current implementation, the file itself can be removed from the setup to improve performance while still getting a volatile recents list.
 
 ### The UI
-The UI itself is written in [Next.js](https://nextjs.org), which I mostly chose for it's ease of use over vanilla HTML, CSS & JS. Since the task document states that UI polish won't be judged here, I haven't put much care into building a proper UI. As such, if any files with long names are opened in the app, the UI might go haywire and look pretty bad, although none of the functionality will be compromised. Also, if you're a web dev reading the front end code, you 'll find that no best practices like separation of concerns or proper documentation are followed in the front-end code. This is because the task states that the focus is on the Rust code. However, the format of the API is detailed below so that you can understand the communication part better
+The UI itself is written in [Next.js](https://nextjs.org), which I mostly chose for it's ease of use over vanilla HTML, CSS & JS. Since the task document states that UI polish won't be judged here, I haven't put much care into building a proper UI. As such, if any files with long names are opened in the app, the UI might go haywire and look pretty bad, although none of the functionality will be compromised. Also, if you're a web dev reading the front end code, you'll find that no best practices like separation of concerns or proper documentation are followed in the front-end code. This is because the task states that the focus is on the Rust code. However, the format of the API is detailed below so that you can understand the communication part better. If you want to view something I've built with Next.js with better quality code, feel free to check out my [interview task submission](https://github.com/vishalkrishnads/openinapp) for [OpenInApp](httsp://openinapp.com).
 
 ### API & Communication
 The front-end would have to communicate with the back-end for either of 2 purposes: either to open a zip file, or to get a list of all recently opened files. As such, the API exposes two [Tauri Commands](https://tauri.app/v1/guides/features/command/) for achieving this.
@@ -180,3 +181,59 @@ I'll detail the control flow of opening a new zip file in the application. As fo
 5. The successful result will have a contents array with the file paths of every file inside the archive. The front-end will display it and then invoke the `refresh` command to update the recents list.
 
 As for the recents list, every time some entry is added to the in memory queue, it's also updated in the non-volatile backup storage (which currently, is a plain text file). When the `refresh` command is invoked, it returns a copy of the queue as a result. The database itself is handled as a managed state within the Tauri application, which is sybchronized by a mutex. The instance will have already opened the text file and will hold on to it. This helps reduce the I/O overhead of having to open & close the text file each time a change is made in the DB.
+
+## Setup Guide
+If you want to view & use the application, you can simply download the binary corresponding to your OS from the releases page. But if you'd rather build & run from this source repo, follow this guide.
+
+### Prerequisites
+Make sure these are installed and ready to go in your machine in order to build the application
+1. Tauri framework: Follow the prerequisites guide [here](https://tauri.app/v1/guides/getting-started/prerequisites) to set it up
+2. Tauri CLI: No big deal once you have cargo installed, simply run `cargo install tauri-cli`
+3. Node.js: Get the binary corresponding to your platform from the [downloads page](https://nodejs.org/en/download) & set it up. In Linux, `apt` installations may not work properly because it usually installs an older version.
+
+### Build from source
+Follow the steps below to clone and build the application
+
+1. Clone this repository
+
+    ```
+    git clone https://github.com/vishalkrishnads/ziphopp.git
+    ```
+
+2. Change working directory
+
+    ```
+    cd ziphopp/
+    ```
+
+3. Install all the JavaScript dependencies
+
+    ```
+    npm install
+    ```
+
+4. Start the development server & the application using the Tauri CLI
+
+    ```
+    cargo tauri dev
+    ```
+
+Once the process finishes, you'll see the application spawned and live on your desktop.
+
+### Documentation
+I have included a cargo docs documentation for all the publicly exposed structs and methods in the back-end. If you want to view that, then simply follow these steps:
+
+* Change your working directory to `/src-tauri`
+
+    ```
+    cd zipphopp/src-tauri
+    ```
+
+* View the documentation using cargo
+
+    ```
+    cargo doc --open
+    ```
+
+## Contributing
+This repo isn't accepting any contributions as of now. You can view more about it in [`CONTRIBUTING`](https://github.com/vishalkrishnads/ziphopp/blob/main/CONTRIBUTING.md).
