@@ -47,43 +47,6 @@ pub mod core {
         }
     }
 
-    /// Represents the metadata about a ZIP archive
-    #[derive(Clone, serde::Serialize)]
-    pub struct MetaData {
-        /// The size of the archive when compressed, formatted as a string. It displays the size for example, as x.x GB
-        compressed: String,
-        /// The size of the archive when uncompressed, formatted as a string. It displays the size for example, as x.x GB
-        size: String,
-        /// The name of the archive file
-        name: String
-    }
-
-    impl MetaData {
-
-        /// Formats a byte size into a human-readable string with appropriate units (B, KB, MB or GB)
-        fn format_bytes(bytes: u64) -> String {
-
-            // an array to hold the different units
-            const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
-            let mut value = bytes as f64; // make a mutable copy of the value
-            let mut unit_idx = 0; // idx tracks which unit to use. it starts from B
-        
-            // we'll divide value by 1024 bytes until it's either less than a single byte (in which case we can safely assume it's B)
-            // or the idx goes above safe range (ie, above 3 would result in it goind out of index of UNITS)
-            while value >= 1024.0 && unit_idx < UNITS.len() - 1 {
-                value /= 1024.0;
-                unit_idx += 1;
-            }
-        
-            format!("{:.2}{}", value, UNITS[unit_idx])
-        }
-
-        /// Creates a new `MetaData` instnace with the specified properties
-        fn new(compressed: u64, size: u64, name: String) -> Self {
-            MetaData { compressed: Self::format_bytes(compressed), size: Self::format_bytes(size), name }
-        }
-    }
-
     /// Represents the result of a successful parse operation
     #[derive(Clone, serde::Serialize)]
     pub struct MetaData {
@@ -171,9 +134,6 @@ pub mod core {
         })?;
 
         let mut contents = Vec::new();
-        for each in archive.file_names() {
-            contents.push(String::from(each));
-        }
 
         let name = get_filename(path);
         let path = String::from(path);
@@ -185,24 +145,27 @@ pub mod core {
             Some(password) => {
                 // once the password has been entered, this will run
                 
-                // descrypt the file to see if password is correct
-                match archive.by_index_decrypt(0, password.as_bytes()) {
-                    Ok(zip) => {  
-                        match zip {
-                            Ok(file) => {
-                                size += file.size();
-                                compressed += file.compressed_size();
-                            },
-                            Err(e) => {
-                                return Err(Error {
-                                    password_required: true,
-                                    path,
-                                    message: e.to_string()
-                                })
-                            }
-                        }     
-                    },
-                    Err(_) => return Err(Error::blank())
+                for i in 0..archive.len() {
+                    // descrypt the file to see if password is correct
+                    match archive.by_index_decrypt(i, password.as_bytes()) {
+                        Ok(zip) => {  
+                            match zip {
+                                Ok(file) => {
+                                    size += file.size();
+                                    compressed += file.compressed_size();
+                                    contents.push(String::from(file.name()));
+                                },
+                                Err(e) => {
+                                    return Err(Error {
+                                        password_required: true,
+                                        path,
+                                        message: e.to_string()
+                                    })
+                                }
+                            }     
+                        },
+                        Err(_) => return Err(Error::blank())
+                    }
                 }
             },
             None => {
@@ -213,6 +176,7 @@ pub mod core {
                         Ok(file) =>  {
                             size += file.size();
                             compressed += file.compressed_size();
+                            contents.push(String::from(file.name()));
                         },
                         Err(error) => {                    
                             let (password_required, message) = match error {
