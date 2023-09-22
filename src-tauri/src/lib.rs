@@ -86,6 +86,36 @@ pub mod core {
 
     /// Represents the result of a successful parse operation
     #[derive(Clone, serde::Serialize)]
+    pub struct MetaData {
+        compressed: String,
+        size: String,
+        name: String
+    }
+
+    impl MetaData {
+        fn format_bytes(bytes: u64) -> String {
+
+            // an array to hold the different units
+            const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
+            let mut value = bytes as f64; // make a mutable copy of the value
+            let mut unit_idx = 0; // idx tracks which unit to use. it starts from B
+        
+            // we'll divide value by 1024 bytes until it's either less than a single byte (in which case we can safely assume it's B)
+            // or the idx goes above safe range (ie, above 3 would result in it goind out of index of UNITS)
+            while value >= 1024.0 && unit_idx < UNITS.len() - 1 {
+                value /= 1024.0;
+                unit_idx += 1;
+            }
+        
+            format!("{:.2}{}", value, UNITS[unit_idx])
+        }
+
+        fn new(compressed: u64, size: u64, name: String) -> Self {
+            MetaData { compressed: Self::format_bytes(compressed), size: Self::format_bytes(size), name }
+        }
+    }
+
+    #[derive(Clone, serde::Serialize)]
     pub struct Success {
         /// A veector containing the file paths of everything in the archive, when uncompressed
         pub contents: Vec<String>,
