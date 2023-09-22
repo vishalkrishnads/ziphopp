@@ -1,3 +1,5 @@
+<img src="https://github.com/vishalkrishnads/ziphopp/assets/50231856/5bf1790a-3923-4aa1-b5f5-0af56779c1e0" alt="ZipHopp" width="250" align="right" >
+
 # `ZipHopp` 🛸
 A desktop app that lists the contents of a ZIP archive, built using the [Tauri framework](https://tauri.app). It lets you select a .zip file from your PC, and lists it's contents by decrypting it. Download the file corresponding to your OS from the [releases page](https://github.com/vishalkrishnads/ziphopp/releases) to use it right away.
 
