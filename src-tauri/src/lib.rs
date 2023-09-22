@@ -1,6 +1,14 @@
 use std::path::Path;
 
-// utility function to get the file name
+/// This function gets the name of a file given a path
+/// 
+/// # Arguments
+/// 
+/// * `path` - The file path as &str
+/// 
+/// # Returns
+/// 
+/// The name of the file in the filesystem
 fn get_filename(path: &str) -> String {
     let path_obj = Path::new(path);
     if let Some(file_name) = path_obj.file_name() {
@@ -17,14 +25,19 @@ pub mod core {
     use zip::{ZipArchive, result::ZipError};
     use super::get_filename;
 
+    /// Represents an error that can occur when a ZIP is opened
     #[derive(Clone, serde::Serialize)]
     pub struct Error {
+        /// This field indicates whether the error is related either to the password being invalid, or the file requiring a password for decryption
         pub password_required: bool,
+        /// The file path to the archive file
         pub path: String,
+        /// A verbose message about the error itself
         pub message: String
     }
 
     impl Error {
+        /// Creates a new `Error` instance with default values.
         pub fn blank() -> Self {
             Error {
                 password_required: false,
@@ -34,6 +47,7 @@ pub mod core {
         }
     }
 
+    /// Represents the result of a successful parse operation
     #[derive(Clone, serde::Serialize)]
     pub struct MetaData {
         compressed: String,
@@ -66,11 +80,26 @@ pub mod core {
 
     #[derive(Clone, serde::Serialize)]
     pub struct Success {
+        /// A veector containing the file paths of everything in the archive, when uncompressed
         pub contents: Vec<String>,
+        /// The file path of the zip archive
         pub path: String,
+        /// Metadata of the file as stated in the requirements
         pub meta: MetaData
     }
 
+    /// Opens a ZIP archive specified by the `file` path and optional `password`.
+    ///
+    /// If `file` is `None`, a file dialog is displayed to select the archive.
+    ///
+    /// # Arguments
+    ///
+    /// * `file` - An optional path to the ZIP archive.
+    /// * `password` - An optional password to decrypt the archive.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing either a `Success` or an `Error`.
     pub fn open(file: Option<String>, password: Option<String>) -> Result<Success, Error> {
         let path_buf = match file {
             Some(path) => Some(PathBuf::from(path)),
@@ -82,19 +111,22 @@ pub mod core {
                     path: String::from(""),
                     message: e.to_string(),
                 })?,
-        };
+        }; // if there is a path, use it or else just prompt the user to choose one
     
+        // extract the path value as &str
         let path = path_buf
             .as_ref()
             .and_then(|path| path.to_str())
             .ok_or_else(|| Error::blank())?;
     
+        // try opening the file at the path. if it fails, return the error
         let file = fs::File::open(&path).map_err(|e| Error {
             password_required: false,
             path: String::from(""),
             message: e.to_string(),
         })?;
     
+        // read the zip file as a ZipArchive to work with it
         let mut archive = ZipArchive::new(file).map_err(|e| Error {
             password_required: false,
             path: path.to_string(),
@@ -102,9 +134,6 @@ pub mod core {
         })?;
 
         let mut contents = Vec::new();
-        for each in archive.file_names() {
-            contents.push(String::from(each));
-        }
 
         let name = get_filename(path);
         let path = String::from(path);
@@ -116,34 +145,44 @@ pub mod core {
             Some(password) => {
                 // once the password has been entered, this will run
                 
-                // descrypt the file to see if password is correct
-                match archive.by_index_decrypt(0, password.as_bytes()) {
-                    Ok(zip) => {  
-                        match zip {
-                            Ok(file) => {
-                                size += file.size();
-                                compressed += file.compressed_size();
-                            },
-                            Err(e) => {
-                                return Err(Error {
-                                    password_required: true,
-                                    path,
-                                    message: e.to_string()
-                                })
-                            }
-                        }     
-                    },
-                    Err(_) => return Err(Error::blank())
+                // loop through each file in the archive
+                for i in 0..archive.len() {
+                    // descrypt the file to see if password is correct
+                    match archive.by_index_decrypt(i, password.as_bytes()) {
+                        Ok(zip) => {  
+                            match zip {
+                                Ok(file) => {
+                                    size += file.size();
+                                    compressed += file.compressed_size();
+                                    contents.push(String::from(file.name()));
+                                },
+                                Err(e) => {
+                                    return Err(Error {
+                                        password_required: true, // if it's a wrong password, we'll have to prompt the user again
+                                        path,
+                                        message: e.to_string()
+                                    })
+                                }
+                            }     
+                        },
+                        Err(_) => return Err(Error::blank())
+                    }
                 }
             },
             None => {
+                // if there is no password, this block will run
+
+                // iterate through each file in the archive
                 for i in 0..archive.len() {
                     match archive.by_index(i) {
                         Ok(file) =>  {
+                            // extract the details from the file
                             size += file.size();
                             compressed += file.compressed_size();
+                            contents.push(String::from(file.name()));
                         },
-                        Err(error) => {                    
+                        Err(error) => {
+                            // figure out what the error is and return it     
                             let (password_required, message) = match error {
                                 ZipError::UnsupportedArchive(e) => (e == ZipError::PASSWORD_REQUIRED, String::from(e)),
                                 ZipError::InvalidArchive(e) => (false, String::from(e)),
@@ -171,25 +210,47 @@ pub mod db {
     use std::io::{self, BufRead, BufReader, Write, Seek};
     use super::get_filename;
 
+    /// The database of the application to store recently opened files
     pub struct Database {
+        /// The file which is used as the permenant backup storage
         file: File,
+        /// The maximum no of recent files displayed, the requirements state it to be 5
         max_entries: usize,
+        /// The queue in memory for fast access at runtime
         queue: VecDeque<String>,
     }
 
+    /// Represents a single ZIP file opened recently
     #[derive(Clone, serde::Serialize)]
     struct HoppFile {
+        /// The name of the ZIP arhive
         name: String,
+        /// The file path of the ZIP archive
         path: String
     }
 
+    /// Represents the recent history. Used to return a result to the front-end
     #[derive(Clone, serde::Serialize)]
     pub struct History {
+        /// A vector containing 5 recently opened files
         history: Vec<HoppFile>
     }
 
     impl Database {
+        /// Returns a new instance of `Database`
+        /// 
+        /// # Arguments
+        /// 
+        /// * `file_path` - The file path as &str
+        /// * `max_entries` - The maximum number of entries the database should hold
+        /// 
+        /// # Returns
+        /// 
+        /// A new instance of `Database` with the given parameters
         pub fn new(file_path: &str, max_entries: usize) -> Self {
+
+            // the file is opened as soon as the instance is created
+            // thereby avoiding the I/O overhead of having to open it every time
             let file = OpenOptions::new()
                 .read(true)
                 .write(true)
@@ -207,7 +268,9 @@ pub mod db {
             database
         }
 
+        /// Loads all the existing data in the file into memory
         fn load_from_file(&mut self) -> io::Result<()> {
+            // create a BufReader from the file
             let reader = BufReader::new(&self.file);
 
             for line in reader.lines() {
@@ -217,6 +280,15 @@ pub mod db {
             Ok(())
         }
 
+        /// Inserts a new entry into the database
+        /// 
+        /// # Arguments
+        /// 
+        /// * `data` - The data to insert as str
+        /// 
+        /// # Returns
+        /// 
+        /// A `Result<>` indicating the result of the operation
         pub fn insert(&mut self, data: &str) -> io::Result<()> {
             // Check if the data (file) already exists in the queue.
             if let Some(existing_index) = self.queue.iter().position(|item| item == data) {
@@ -235,18 +307,26 @@ pub mod db {
             Ok(())
         }        
 
+        /// Saves a copy of the queue to the file
         fn save_to_file(&mut self) -> io::Result<()> {
             self.file.set_len(0).unwrap();
-            self.file.seek(std::io::SeekFrom::Start(0)).unwrap(); // Reposition cursor to the start.
+            // Reposition cursor to the start.
+            self.file.seek(std::io::SeekFrom::Start(0)).unwrap(); 
 
             for data in &self.queue {
                 writeln!(&self.file, "{}", data)?;
             }
 
+            // flush() is used to immediately flush the data onto the file
             self.file.flush()?;
             Ok(())
         }
 
+        /// Returns all the contents of the database for the front end to refresh recents list
+        /// 
+        /// # Returns
+        /// 
+        /// An instance of `History` containing a vector with the database contents
         pub fn refresh(&self) -> History {
             let mut history = Vec::new();
 
