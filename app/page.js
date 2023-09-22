@@ -6,8 +6,8 @@ import Recent from './components/Recent/Recent'
 import PwdModal from './components/Password/Password'
 import styles from './page.module.css'
 import zip from './assets/zipicon.png'
-import { useEffect, useRef, useState } from 'react'
-import { invoke } from '@tauri-apps/api'
+import { useCallback, useEffect, useRef, useState } from 'react'
+// import { invoke } from '@tauri-apps/api'
 
 export default function Home() {
 
@@ -18,7 +18,9 @@ export default function Home() {
   const [error, setError] = useState('')
   const pathRef = useRef('');
 
-  const openFile = (path = '', password = '') => {
+  const openFile = useCallback(async(path = '', password = '') => {
+
+    const { invoke } = await import('@tauri-apps/api')
     // clear the current file
     setCurrent({})
 
@@ -41,15 +43,19 @@ export default function Home() {
         if(password.length > 0) setError(error.message)
       }
     })
-  }
+  })
 
-  const refresh = () => {
+  const refresh = useCallback(async() => {
+    const { invoke } = await import('@tauri-apps/api')
+
     invoke('refresh')
     .then((result) => setRecents(result.history))
     .catch((error) => {})
-  }
+  })
 
-  useEffect(refresh, [])
+  useEffect(() => {
+    refresh()
+  }, [])
 
   return (
     <main className={styles.main}>
