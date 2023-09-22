@@ -145,6 +145,7 @@ pub mod core {
             Some(password) => {
                 // once the password has been entered, this will run
                 
+                // loop through each file in the archive
                 for i in 0..archive.len() {
                     // descrypt the file to see if password is correct
                     match archive.by_index_decrypt(i, password.as_bytes()) {
@@ -157,7 +158,7 @@ pub mod core {
                                 },
                                 Err(e) => {
                                     return Err(Error {
-                                        password_required: true,
+                                        password_required: true, // if it's a wrong password, we'll have to prompt the user again
                                         path,
                                         message: e.to_string()
                                     })
@@ -171,14 +172,17 @@ pub mod core {
             None => {
                 // if there is no password, this block will run
 
+                // iterate through each file in the archive
                 for i in 0..archive.len() {
                     match archive.by_index(i) {
                         Ok(file) =>  {
+                            // extract the details from the file
                             size += file.size();
                             compressed += file.compressed_size();
                             contents.push(String::from(file.name()));
                         },
-                        Err(error) => {                    
+                        Err(error) => {
+                            // figure out what the error is and return it     
                             let (password_required, message) = match error {
                                 ZipError::UnsupportedArchive(e) => (e == ZipError::PASSWORD_REQUIRED, String::from(e)),
                                 ZipError::InvalidArchive(e) => (false, String::from(e)),
@@ -244,6 +248,9 @@ pub mod db {
         /// 
         /// A new instance of `Database` with the given parameters
         pub fn new(file_path: &str, max_entries: usize) -> Self {
+
+            // the file is opened as soon as the instance is created
+            // thereby avoiding the I/O overhead of having to open it every time
             let file = OpenOptions::new()
                 .read(true)
                 .write(true)
