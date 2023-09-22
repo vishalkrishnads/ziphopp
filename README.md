@@ -1,5 +1,5 @@
 # `ZipHopp` 🛸
-A desktop app that lists the contents of a ZIP archive, built using the [Tauri framework](https://tauri.app). It lets you select a .zip file from your PC, and lists it's contents by decrypting it. Download the file corresponding to your OS from the [releases page]() to use it right away.
+A desktop app that lists the contents of a ZIP archive, built using the [Tauri framework](https://tauri.app). It lets you select a .zip file from your PC, and lists it's contents by decrypting it. Download the file corresponding to your OS from the [releases page](https://github.com/vishalkrishnads/ziphopp/releases) to use it right away.
 
 > :warning: This is the submission for an interview task assigned to me as part of the **Rust Engineer** role at [HoppScotch](https://hoppscotch.io), and not one of my projects.
 
@@ -16,6 +16,7 @@ A desktop app that lists the contents of a ZIP archive, built using the [Tauri f
     * [API & Communication](#api--communication)
         * [Opening files](#opening-files)
         * [Recents list](#recents-list)
+    * [Control Flow](#control-flow)
 * Setup Guide
     * Prerequisites
     * Build from source
@@ -100,5 +101,82 @@ The UI itself is written in [Next.js](https://nextjs.org), which I mostly chose 
 The front-end would have to communicate with the back-end for either of 2 purposes: either to open a zip file, or to get a list of all recently opened files. As such, the API exposes two [Tauri Commands](https://tauri.app/v1/guides/features/command/) for achieving this.
 
 #### Opening files
+The back-end exposes a command for opening a zip file and returning it's contents. It can be invoked from the front-end JS code like so
+
+```javascript
+    import { invoke } from '@tauri-apps/api'
+
+    let payload = {};
+
+    // if you wanna open with password
+    payload.password = 'your_password';
+    // if you wanna open a file using a path
+    // useful for reopening recent files
+    payload.path = 'your_path';
+
+    invoke('open_file', payload)
+    .then((result) => {
+        // you'll get a successful response with the contents
+    }).catch((error) => {
+        // do something with the error
+        // if it's a password related error, error.password_required will be true
+    })
+```
+
+The function signature for this command is as you'd expect
+
+```rust
+    #[tauri::command]
+    fn open_file(
+        path: Option<String>, 
+        password: Option<String>,
+        // for accessing the shared database instance 
+        state: tauri::State<HoppState>
+        ) -> Result<Success, Error>
+```
+In summary, the back-end exposes a single function which you can call for doing all zip file related tasks, be it simply opening a file of the user's choice, decrypting a password encrpyted file or opening a file of your choice.
 
 #### Recents list
+
+Contrary to the file opening API, the recents list API is pretty simple to invoke as it doesn't take in any payloads. All it does is return a result, which if successful, will contain an array of the recently opened files, where each entry would contain a file name & path. Here's how it can be invoked
+
+```javascript
+    import { invoke } from '@tauri-apps/api'
+
+    invoke('refresh')
+    .then((result) => {
+        for(const each of result.history) {
+            console.log(`File ${each.name} is at ${each.path}`)
+        }
+    }).catch((error) => {
+        // do something
+    })
+```
+
+The function signature for this command is also pretty simple
+
+```rust
+    #[tauri::command]
+    fn refresh(
+        state: tauri::State<HoppState>
+        ) -> Result<History, Error>
+```
+
+In summary, this command provides a simple interface for the front-end to refresh the list of recently opened files. I have tried to achieve maximum functionality with limited number of commands thus providing an elegant API for the front-end, and hence is the reason why all the file handling logic has been put into the single command. You can read more about the control flow between the front-end & back-end below.
+
+> In an attempt to improve performance, I have avoided any deep copy operations using `.clone()` throughout the code. Nothing big, but just putting it out there in case you haven't noticed.😁
+
+### Control Flow
+This section details how the control flows within the application for different tasks. I intend to express my thought process here, although I'm not sure how well you'll be able to understand. If you're interested, please keep reading. If not, feel free to skip to the next section.
+
+I'll detail the control flow of opening a new zip file in the application. As for the recents list, I don't feel like there's much to detail in terms of the communication part. So here goes
+
+1. A user clicks the **Open File** button in the UI, thus invoking the `open_file` command with an empty payload `{}`. Since no path is provided, the file picker dialog pops up allowing the user to choose a file
+2. The back-end will attempt opening and reading the file
+    * If successful, it'll return a successful response along with the contents. It'll also add the file to the recents list.
+    * If not, it'll return an error message which will also contain the path of the file the user selected
+3. If the response is a successful one, the front-end will skip to step 5. If not, it will look at the error message to see if the `password_required` field is true. If so, it'll display a password popup and keep the file path in memory.
+4. Once the popup is visible, the user can enter a password & when that happens, the front-end invokes the `open_file` command again, but this time, with a path & password in the payload. Again, for the response, it'll repeat step 3.
+5. The successful result will have a contents array with the file paths of every file inside the archive. The front-end will display it and then invoke the `refresh` command to update the recents list.
+
+As for the recents list, every time some entry is added to the in memory queue, it's also updated in the non-volatile backup storage (which currently, is a plain text file). When the `refresh` command is invoked, it returns a copy of the queue as a result. The database itself is handled as a managed state within the Tauri application, which is sybchronized by a mutex. The instance will have already opened the text file and will hold on to it. This helps reduce the I/O overhead of having to open & close the text file each time a change is made in the DB.
