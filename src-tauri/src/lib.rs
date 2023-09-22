@@ -134,9 +134,6 @@ pub mod core {
         })?;
 
         let mut contents = Vec::new();
-        for each in archive.file_names() {
-            contents.push(String::from(each));
-        }
 
         let name = get_filename(path);
         let path = String::from(path);
@@ -148,24 +145,27 @@ pub mod core {
             Some(password) => {
                 // once the password has been entered, this will run
                 
-                // descrypt the file to see if password is correct
-                match archive.by_index_decrypt(0, password.as_bytes()) {
-                    Ok(zip) => {  
-                        match zip {
-                            Ok(file) => {
-                                size += file.size();
-                                compressed += file.compressed_size();
-                            },
-                            Err(e) => {
-                                return Err(Error {
-                                    password_required: true,
-                                    path,
-                                    message: e.to_string()
-                                })
-                            }
-                        }     
-                    },
-                    Err(_) => return Err(Error::blank())
+                for i in 0..archive.len() {
+                    // descrypt the file to see if password is correct
+                    match archive.by_index_decrypt(i, password.as_bytes()) {
+                        Ok(zip) => {  
+                            match zip {
+                                Ok(file) => {
+                                    size += file.size();
+                                    compressed += file.compressed_size();
+                                    contents.push(String::from(file.name()));
+                                },
+                                Err(e) => {
+                                    return Err(Error {
+                                        password_required: true,
+                                        path,
+                                        message: e.to_string()
+                                    })
+                                }
+                            }     
+                        },
+                        Err(_) => return Err(Error::blank())
+                    }
                 }
             },
             None => {
@@ -176,6 +176,7 @@ pub mod core {
                         Ok(file) =>  {
                             size += file.size();
                             compressed += file.compressed_size();
+                            contents.push(String::from(file.name()));
                         },
                         Err(error) => {                    
                             let (password_required, message) = match error {
