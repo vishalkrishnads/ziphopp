@@ -118,19 +118,22 @@ pub mod core {
                     path: String::from(""),
                     message: e.to_string(),
                 })?,
-        };
+        }; // if there is a path, use it or else just prompt the user to choose one
     
+        // extract the path value as &str
         let path = path_buf
             .as_ref()
             .and_then(|path| path.to_str())
             .ok_or_else(|| Error::blank())?;
     
+        // try opening the file at the path. if it fails, return the error
         let file = fs::File::open(&path).map_err(|e| Error {
             password_required: false,
             path: String::from(""),
             message: e.to_string(),
         })?;
     
+        // read the zip file as a ZipArchive to work with it
         let mut archive = ZipArchive::new(file).map_err(|e| Error {
             password_required: false,
             path: path.to_string(),
@@ -173,6 +176,8 @@ pub mod core {
                 }
             },
             None => {
+                // if there is no password, this block will run
+
                 for i in 0..archive.len() {
                     match archive.by_index(i) {
                         Ok(file) =>  {
@@ -262,7 +267,9 @@ pub mod db {
             database
         }
 
+        /// Loads all the existing data in the file into memory
         fn load_from_file(&mut self) -> io::Result<()> {
+            // create a BufReader from the file
             let reader = BufReader::new(&self.file);
 
             for line in reader.lines() {
@@ -299,14 +306,17 @@ pub mod db {
             Ok(())
         }        
 
+        /// Saves a copy of the queue to the file
         fn save_to_file(&mut self) -> io::Result<()> {
             self.file.set_len(0).unwrap();
-            self.file.seek(std::io::SeekFrom::Start(0)).unwrap(); // Reposition cursor to the start.
+            // Reposition cursor to the start.
+            self.file.seek(std::io::SeekFrom::Start(0)).unwrap(); 
 
             for data in &self.queue {
                 writeln!(&self.file, "{}", data)?;
             }
 
+            // flush() is used to immediately flush the data onto the file
             self.file.flush()?;
             Ok(())
         }
